@@ -5,6 +5,7 @@ from rest_framework.mixins import CreateModelMixin
 from rest_framework.generics import GenericAPIView
 from rest_framework import generics , permissions
 from rest_framework.decorators import api_view
+
 from .models import (
        User , Account , Post ,
        PostLike , Comment , MarketPlace ,
@@ -23,18 +24,22 @@ from .serializer import (
        SendFriendRequestSerializer , ProfilerateSerializer,
        NotificationSerializer , MessageSerializer
 )
-
 from .throttle import CreatingPrivateGroupThrottle , OneTimeProfileRate
+
 from .permission import (
        ProfilePermission , PrivateGroupPermission ,
        PermissionToUpdatePrivateGroup,PermissionModifyComment,
        
        )
+
 from django.shortcuts import redirect , get_object_or_404
 from django.conf import settings
 from django.core.mail import send_mail
 from .utils import generate_qr_code
-import random
+import requests , random
+
+
+OLLAMA_API_URL = "http://localhost:11434/api/generate"
 
 def users_code() :
        list = ["fe9","ew5"]
@@ -45,20 +50,15 @@ def create_user_and_send_email(request):
     if request.method == 'POST':
        serializer = RegistrationSerializer(data=request.data)
        if serializer.is_valid():
-
            user = serializer.save()
            subject = f'Welcome to Our Platform your code is{users_code()}'
            message = f'Hello {user.username},\n\nThank you for registering with us!'
            from_email = settings.EMAIL_HOST_USER  
-
            recipient_list = [user.email]  
            user_data = {
-                  "username" : user.username,
-                  "email" : user.email,
-           }
-          
+              "username" : user.username,
+              "email" : user.email,}
            qr = generate_qr_code(user_data)
-           
            try:
               send_mail(subject, message, from_email, recipient_list)
               return Response({
@@ -69,7 +69,7 @@ def create_user_and_send_email(request):
               'message': f'User created, but email could not be sent. Error: {str(e)}'
               }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+              return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class AuthUsersView(APIView) :
        def get(self,request, *args,**kwargs) :
@@ -280,12 +280,12 @@ class PublicGroupList(generics.ListAPIView) :
        serializer_class   = PublicGroupSerializer
        queryset           = Public.objects.all()                
        permission_classes = [permissions.IsAuthenticatedOrReadOnly]
- 
+
 
 class CreatePostInPrivateGroup(GenericAPIView,CreateModelMixin) :
        serializer_class   = CreatePostInPrivateGroupSerializer 
        permission_classes = [PrivateGroupPermission]
-      
+
        def post(self,request,*args,**kwargs) :
               serializer = self.get_serializer(data=request.data)
               if serializer.is_valid() :
@@ -295,7 +295,7 @@ class CreatePostInPrivateGroup(GenericAPIView,CreateModelMixin) :
                      image        = serializer.validated_data["image"]
                      private      = serializer.validated_data["private"]
                      descriptions = serializer.validated_data["descriptions"]
- 
+
                      post = Post.objects.create(
                             title        = title,
                             image        = image,
@@ -479,7 +479,6 @@ class NotificationDetail(APIView) :
               serializer   = NotificationSerializer(notification , many=False)
               return Response(serializer.data , status=status.HTTP_200_OK)
 
-
 class InboxMessagesAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request):
@@ -536,4 +535,26 @@ class DeleteConversationMessagesAPIVIew(APIView):
                      return Response({"message": "Message deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
               else:
                      return Response(
-                            {"error": "You do not have permission to delete this message."}, status=status.HTTP_403_FORBIDDEN) 
+                            {"error": "You do not have permission to delete this message."}, status=status.HTTP_403_FORBIDDEN)
+
+class OllamaChatView(APIView):
+    def post(self, request):
+        user_prompt = request.data.get("prompt")
+
+        if not user_prompt:
+            return Response({"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            "model": "llama3",
+            "prompt": user_prompt,
+            "stream": False
+        }
+
+        try:
+            response = requests.post(OLLAMA_API_URL, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            return Response({"response": result.get("response")})
+        except requests.RequestException as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        

@@ -155,3 +155,4 @@ class Message(models.Model) :
     
     def __str__(self) :
         return f" from : {self.sender.user.username} to => {self.reciver.user.username}"
+
