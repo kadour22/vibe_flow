@@ -540,16 +540,13 @@ class DeleteConversationMessagesAPIVIew(APIView):
 class OllamaChatView(APIView):
     def post(self, request):
         user_prompt = request.data.get("prompt")
-
         if not user_prompt:
             return Response({"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
-
         payload = {
             "model": "llama3",
             "prompt": user_prompt,
             "stream": False
         }
-
         try:
             response = requests.post(OLLAMA_API_URL, json=payload)
             response.raise_for_status()
@@ -557,4 +554,4 @@ class OllamaChatView(APIView):
             return Response({"response": result.get("response")})
         except requests.RequestException as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
