@@ -538,20 +538,24 @@ class DeleteConversationMessagesAPIVIew(APIView):
                             {"error": "You do not have permission to delete this message."}, status=status.HTTP_403_FORBIDDEN)
 
 class OllamaChatView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
     def post(self, request):
+
         user_prompt = request.data.get("prompt")
         if not user_prompt:
             return Response({"error": "Prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         payload = {
             "model": "llama3",
             "prompt": user_prompt,
             "stream": False
         }
+
         try:
             response = requests.post(OLLAMA_API_URL, json=payload)
             response.raise_for_status()
             result = response.json()
             return Response({"response": result.get("response")})
+
         except requests.RequestException as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
