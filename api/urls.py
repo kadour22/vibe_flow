@@ -51,5 +51,5 @@ urlpatterns = [
        path("messages/message/<int:message_id>/" , views.InboxMessagesAPIView.as_view()),
        path("messages/delete/<int:message_id>/" , views.InboxMessagesAPIView.as_view()),
        # Ollama chat url
-       path("chat/" , views.OllamaChatView.as_view() , name="chat-bot")
+       path("chat/" , views.OllamaChatView.as_view() , name="chat-bot"),
 ]
